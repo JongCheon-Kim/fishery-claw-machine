@@ -1,0 +1,1729 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fisher-Claw AI: 스마트 피지컬 수산 오락기</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: 한국어 레트로 & 고딕 폰트 -->
+    <link href="https://fonts.googleapis.com/css2?family=DungGeunMo&family=Orbitron:wght@400;700;900&family=Noto+Sans+KR:wght@300;500;700;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #0d0f14;
+            color: #f3f4f6;
+            overflow-x: hidden;
+        }
+        .retro-font {
+            font-family: 'DungGeunMo', monospace;
+        }
+        .digital-font {
+            font-family: 'Orbitron', sans-serif;
+        }
+        /* 레트로 네온 효과 */
+        .neon-border {
+            box-shadow: 0 0 10px #10b981, inset 0 0 5px #10b981;
+            border: 2px solid #10b981;
+        }
+        .neon-text-emerald {
+            text-shadow: 0 0 5px #10b981, 0 0 10px #10b981;
+        }
+        .neon-text-violet {
+            text-shadow: 0 0 5px #8b5cf6, 0 0 10px #8b5cf6;
+        }
+        .neon-border-violet {
+            box-shadow: 0 0 10px #8b5cf6, inset 0 0 5px #8b5cf6;
+            border: 2px solid #8b5cf6;
+        }
+        /* 요리 냄비 보글보글 애니메이션 */
+        @keyframes bubbleUp {
+            0% { transform: translateY(10px) scale(0.8); opacity: 0; }
+            50% { opacity: 0.8; }
+            100% { transform: translateY(-25px) scale(1.2); opacity: 0; }
+        }
+        .steam-bubble {
+            animation: bubbleUp 1.2s infinite ease-in-out;
+        }
+        /* 스크롤바 커스텀 */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111827;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #10b981;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen items-center justify-start p-2 sm:p-6">
+
+    <!-- 스마트 오락기 메인 컨테이너 -->
+    <div class="w-full max-w-7xl bg-gray-900 border-4 border-gray-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col lg:flex-row">
+        
+        <!-- 왼쪽: 게임기 캐비닛 (캔버스 화면 영역) -->
+        <div class="w-full lg:w-3/5 p-4 bg-black flex flex-col items-center border-b-4 lg:border-b-0 lg:border-r-4 border-gray-800">
+            <!-- 게임기 상단 네온 타이틀 바 -->
+            <div class="w-full flex justify-between items-center bg-gray-950 px-4 py-2 rounded-xl mb-3 neon-border border-emerald-500">
+                <span class="retro-font text-emerald-400 text-lg sm:text-2xl neon-text-emerald animate-pulse">🕹️ FISHER-CLAW AI PRO</span>
+                <div class="flex items-center space-x-2">
+                    <span class="w-3 h-3 bg-red-500 rounded-full animate-ping"></span>
+                    <span class="digital-font text-xs text-gray-400">GEMINI LIVE CONNECTED</span>
+                </div>
+            </div>
+
+            <!-- 시뮬레이터 캔버스 컨테이너 (종횡비 4:3 유지용) -->
+            <div class="relative w-full aspect-[4/3] bg-slate-950 rounded-2xl overflow-hidden border-2 border-gray-800">
+                <canvas id="gameCanvas" class="w-full h-full block"></canvas>
+                <!-- 캔버스 위에 뜨는 가이드 텍스트 -->
+                <div id="overlayText" class="absolute top-4 left-4 pointer-events-none bg-black/60 px-3 py-1.5 rounded-lg text-xs text-gray-300 retro-font border border-gray-800">
+                    <i class="fa-solid fa-circle-info text-emerald-400 mr-1 animate-bounce"></i> 방향키(←,→) 조준, 하단 물리버튼 클릭!
+                </div>
+                <!-- 잉크 폭탄 먹물 효과 오버레이 -->
+                <div id="inkOverlay" class="absolute inset-0 bg-black/90 pointer-events-none transition-opacity duration-500 opacity-0 flex items-center justify-center">
+                    <div class="text-center">
+                        <span class="retro-font text-purple-500 text-3xl font-bold animate-bounce">⚠️ 오징어 먹물 공격!!</span>
+                        <p class="text-xs text-gray-400 mt-2">화면이 서서히 정화되고 있습니다...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 오락기 물리 조작 판넬 (Hardware Joystick & Buttons) -->
+            <div class="w-full mt-4 bg-gray-950 p-4 rounded-2xl border border-gray-800 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <!-- 조이스틱 제어기 -->
+                <div class="flex items-center space-x-4">
+                    <div class="flex flex-col items-center">
+                        <span class="text-[10px] text-gray-500 retro-font mb-1">JOYSTICK</span>
+                        <div class="flex items-center bg-gray-900 p-2 rounded-xl border border-gray-800">
+                            <button id="btnLeft" class="w-14 h-14 bg-gray-800 active:bg-emerald-600 border-b-4 border-gray-950 rounded-lg flex items-center justify-center transition-all select-none touch-none">
+                                <i class="fa-solid fa-arrow-left text-2xl text-emerald-400"></i>
+                            </button>
+                            <div class="w-8 h-8 mx-2 bg-gray-950 rounded-full border-2 border-gray-800 flex items-center justify-center">
+                                <div class="w-4 h-4 bg-emerald-500 rounded-full animate-pulse shadow-lg"></div>
+                            </div>
+                            <button id="btnRight" class="w-14 h-14 bg-gray-800 active:bg-emerald-600 border-b-4 border-gray-950 rounded-lg flex items-center justify-center transition-all select-none touch-none">
+                                <i class="fa-solid fa-arrow-right text-2xl text-emerald-400"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 대형 GRAB 버튼 -->
+                <div class="flex-1 w-full sm:w-auto flex justify-center">
+                    <button id="btnGrab" class="w-full sm:w-44 h-16 bg-red-600 hover:bg-red-500 active:bg-red-700 active:translate-y-1 text-white font-extrabold text-2xl rounded-2xl border-b-8 border-red-950 flex items-center justify-center gap-2 shadow-lg transition-all shadow-red-600/20 active:border-b-2">
+                        <span class="retro-font">GRAB!</span>
+                        <i class="fa-solid fa-circle-down animate-bounce"></i>
+                    </button>
+                </div>
+
+                <!-- 사운드 토글 & 코인 점수판 -->
+                <div class="flex items-center space-x-4 bg-gray-900 p-2.5 rounded-xl border border-gray-800">
+                    <button id="btnMute" class="w-10 h-10 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center text-gray-400">
+                        <i id="muteIcon" class="fa-solid fa-volume-high"></i>
+                    </button>
+                    <div class="text-right min-w-[60px]">
+                        <div class="text-[9px] text-gray-500 retro-font">SCORE</div>
+                        <div id="scoreVal" class="digital-font text-xl text-emerald-400 font-bold">0000</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 오른쪽: 공정 제어반 및 인벤토리 & AI 미식 요리 연구소 -->
+        <div class="w-full lg:w-2/5 p-4 bg-gray-950 flex flex-col justify-between space-y-4">
+            <div>
+                <!-- 상단 헤더 -->
+                <div class="border-b border-gray-800 pb-2 flex justify-between items-center">
+                    <div>
+                        <h2 class="retro-font text-violet-400 text-md neon-text-violet"><i class="fa-solid fa-gears mr-1"></i> 피지컬 AI 공정 제어반</h2>
+                        <p class="text-[10px] text-gray-400">수확한 수산물을 조리 가공하세요!</p>
+                    </div>
+                    <span id="targetSpeciesBadge" class="text-[10px] bg-slate-800 text-emerald-400 px-2 py-1 rounded-md font-bold retro-font">대기 중</span>
+                </div>
+
+                <!-- 수산 가공 패널 -->
+                <div class="bg-gray-900 p-2 rounded-xl border border-gray-800 mt-2">
+                    <div class="grid grid-cols-5 gap-1.5" id="processGrid">
+                        <button onclick="triggerProcess('filet')" class="process-btn p-1.5 bg-gray-800 text-gray-300 rounded-lg border border-gray-700 text-[10px] font-semibold flex flex-col items-center justify-center gap-0.5 opacity-50 cursor-not-allowed transition-all" data-type="filet" disabled>
+                            <i class="fa-solid fa-knife text-red-400 text-sm"></i>
+                            <span>순살필렛</span>
+                        </button>
+                        <button onclick="triggerProcess('round')" class="process-btn p-1.5 bg-gray-800 text-gray-300 rounded-lg border border-gray-700 text-[10px] font-semibold flex flex-col items-center justify-center gap-0.5 opacity-50 cursor-not-allowed transition-all" data-type="round" disabled>
+                            <i class="fa-solid fa-fish text-blue-400 text-sm"></i>
+                            <span>라운드</span>
+                        </button>
+                        <button onclick="triggerProcess('salt')" class="process-btn p-1.5 bg-gray-800 text-gray-300 rounded-lg border border-gray-700 text-[10px] font-semibold flex flex-col items-center justify-center gap-0.5 opacity-50 cursor-not-allowed transition-all" data-type="salt" disabled>
+                            <i class="fa-solid fa-cubes-salt text-yellow-500 text-sm"></i>
+                            <span>자반염장</span>
+                        </button>
+                        <button onclick="triggerProcess('boiled')" class="process-btn p-1.5 bg-gray-800 text-gray-300 rounded-lg border border-gray-700 text-[10px] font-semibold flex flex-col items-center justify-center gap-0.5 opacity-50 cursor-not-allowed transition-all" data-type="boiled" disabled>
+                            <i class="fa-solid fa-fire-burner text-amber-500 text-sm"></i>
+                            <span>자숙해감</span>
+                        </button>
+                        <button onclick="triggerProcess('can')" class="process-btn p-1.5 bg-gray-800 text-gray-300 rounded-lg border border-gray-700 text-[10px] font-semibold flex flex-col items-center justify-center gap-0.5 opacity-50 cursor-not-allowed transition-all" data-type="can" disabled>
+                            <i class="fa-solid fa-prescription-bottle text-emerald-400 text-sm"></i>
+                            <span>통조림</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 실시간 AI 수산물 납품 계약서 의뢰판 -->
+                <div class="mt-3 bg-slate-900 border border-violet-800/60 p-3 rounded-xl">
+                    <div class="flex justify-between items-center border-b border-violet-800/40 pb-1.5 mb-2">
+                        <span class="text-xs retro-font text-violet-300 flex items-center gap-1">
+                            <i class="fa-solid fa-file-signature text-violet-400 animate-pulse"></i> 
+                            AI 수산 실시간 납품 의뢰판
+                        </span>
+                        <button onclick="generateNewAiContract()" class="text-[9px] bg-violet-950 hover:bg-violet-900 border border-violet-700 text-violet-300 px-2 py-0.5 rounded transition-colors">
+                            <i class="fa-solid fa-rotate mr-1"></i>새 의뢰 갱신
+                        </button>
+                    </div>
+                    <div id="contractDisplay" class="text-[11px] text-gray-300 min-h-[50px] flex flex-col justify-between">
+                        <p class="text-gray-500 text-center py-2">AI가 신규 글로벌 계약을 분석 중입니다...</p>
+                    </div>
+                </div>
+
+                <!-- 생산물 인벤토리 (보관고) -->
+                <div class="mt-3">
+                    <div class="flex justify-between items-center mb-1.5">
+                        <span class="text-xs text-gray-400 retro-font"><i class="fa-solid fa-boxes-stacked mr-1"></i> 수확 보관함 <span class="text-[10px] text-violet-400">(요리할 품목 선택, 최대 2개)</span></span>
+                        <span id="invCount" class="text-[10px] text-gray-500 font-bold">0 / 60</span>
+                    </div>
+                    <!-- 격자형 아이템 슬롯들 -->
+                    <div id="inventorySlots" class="grid grid-cols-4 gap-1.5 bg-slate-900/60 p-2.5 rounded-xl border border-gray-800 h-[105px] overflow-y-auto">
+                        <div class="col-span-4 flex items-center justify-center h-full text-gray-600 text-[11px] retro-font">
+                            보관된 가공품이 없습니다.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 하단: AI 미식 요리 연구소 (Chef's Kitchen Studio) -->
+            <div class="bg-gradient-to-b from-gray-900 to-slate-950 p-3.5 rounded-xl border border-violet-900 flex flex-col justify-between space-y-2.5">
+                <div class="flex items-center justify-between border-b border-violet-900/40 pb-1.5">
+                    <span class="text-xs retro-font text-violet-400 font-bold"><i class="fa-solid fa-kitchen-set mr-1 text-violet-500"></i> 🍳 AI 미식 요리 연구소</span>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[8px] bg-violet-900/50 text-violet-300 px-1.5 py-0.5 rounded border border-violet-700">GEMINI 3.1 GOURMET</span>
+                    </div>
+                </div>
+                
+                <!-- 요리 냄비 (선택한 품목 전시 구역) -->
+                <div class="flex justify-around items-center bg-slate-900/80 p-2 rounded-xl border border-gray-800">
+                    <div class="flex flex-col items-center">
+                        <span class="text-[9px] text-gray-500 retro-font mb-1">식재료 1</span>
+                        <div id="potSlot1" onclick="unloadIngredient(0)" class="w-14 h-14 rounded-xl border-2 border-dashed border-gray-700 bg-slate-950 flex flex-col items-center justify-center cursor-pointer hover:border-red-500 transition-colors">
+                            <span class="text-gray-600 text-[10px] retro-font">비었음</span>
+                        </div>
+                    </div>
+                    <div class="flex flex-col items-center justify-center">
+                        <i class="fa-solid fa-plus text-gray-600 animate-pulse"></i>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <span class="text-[9px] text-gray-500 retro-font mb-1">식재료 2</span>
+                        <div id="potSlot2" onclick="unloadIngredient(1)" class="w-14 h-14 rounded-xl border-2 border-dashed border-gray-700 bg-slate-950 flex flex-col items-center justify-center cursor-pointer hover:border-red-500 transition-colors">
+                            <span class="text-gray-600 text-[10px] retro-font">비었음</span>
+                        </div>
+                    </div>
+                    <div class="flex flex-col justify-center items-stretch space-y-1">
+                        <button id="btnDevelopRecipes" onclick="developRecipes()" class="bg-violet-800 hover:bg-violet-700 text-white text-[10px] font-bold py-2 px-3 rounded-lg transition-colors select-none opacity-50 cursor-not-allowed" disabled>
+                            <i class="fa-solid fa-wand-magic-sparkles mr-1"></i>레시피 개발
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 조리 시뮬레이션 및 요리 완성 피드백 구역 -->
+                <div id="kitchenDisplayPanel" class="text-[11px] text-gray-300 leading-relaxed min-h-[140px] max-h-[160px] overflow-y-auto pr-1">
+                    <p class="text-gray-500 italic text-center pt-8">수확 보관함에서 가공품을 클릭해 요리 냄비에 담아주세요.<br>선택한 수산물로 만들 수 있는 미식 레시피가 생성됩니다.</p>
+                </div>
+
+                <!-- 부재료 냉장고 파먹기 레시피 융합 인풋 (선택 사항) -->
+                <div id="fusionContainer" class="hidden bg-slate-900 p-2 rounded-lg border border-violet-900/40">
+                    <p class="text-[9px] text-violet-300 font-bold mb-1"><i class="fa-solid fa-mortar-pestle mr-1"></i> 냉장고 속 부재료 추가 (선택 입력)</p>
+                    <div class="flex gap-1.5">
+                        <input type="text" id="extraIngredients" placeholder="예: 고추장, 치즈, 양파, 라면사리" class="flex-1 bg-slate-950 text-[10px] text-gray-200 px-2 py-1 rounded border border-gray-800 focus:outline-none focus:border-violet-500">
+                    </div>
+                </div>
+
+                <!-- API Key 입력 영역 -->
+                <div class="pt-2 border-t border-gray-800 flex items-center justify-between gap-1.5">
+                    <div class="relative flex-1">
+                        <input type="password" id="apiKeyInput" placeholder="Gemini API Key (비우면 시뮬레이터 자체 제공 키 사용)" class="w-full text-[9px] bg-slate-900 text-gray-300 px-2 py-1.5 rounded-lg border border-gray-850 focus:outline-none focus:border-violet-500 placeholder-gray-600">
+                    </div>
+                    <button onclick="saveApiKey()" class="bg-violet-700 hover:bg-violet-600 active:bg-violet-800 text-white text-[9px] font-bold px-3 py-1.5 rounded-lg shrink-0 transition-colors">적용</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 푸터 및 법률 프로젝트 바로가기 홍보 -->
+    <div class="w-full max-w-7xl mt-4 flex flex-col sm:flex-row justify-between items-center text-xs text-gray-500 px-4 gap-2">
+        <span>© 2026 Fisher-Claw AI Inc. All rights reserved.</span>
+        <span class="retro-font text-emerald-500"><i class="fa-solid fa-gavel mr-1"></i> 해양수산법령 분석 엔진(FisherLaw) 및 Gemini LLM 연계 기술 데모</span>
+    </div>
+
+    <script>
+        // --- 사운드 제어 시스템 (Web Audio API) ---
+        let audioCtx = null;
+        let isMuted = false;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type) {
+            if (isMuted) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'coin') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(587.33, now); // D5
+                osc.frequency.setValueAtTime(880, now + 0.1); // A5
+                gainNode.gain.setValueAtTime(0.08, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                osc.start(now);
+                osc.stop(now + 0.35);
+            } else if (type === 'drop') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(250, now);
+                osc.frequency.exponentialRampToValueAtTime(70, now + 0.8);
+                gainNode.gain.setValueAtTime(0.1, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+                osc.start(now);
+                osc.stop(now + 0.8);
+            } else if (type === 'catch') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.setValueAtTime(554.37, now + 0.08);
+                osc.frequency.setValueAtTime(659.25, now + 0.16);
+                osc.frequency.setValueAtTime(880, now + 0.24);
+                gainNode.gain.setValueAtTime(0.15, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } else if (type === 'process') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(100, now);
+                osc.frequency.linearRampToValueAtTime(350, now + 0.5);
+                gainNode.gain.setValueAtTime(0.2, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+                osc.start(now);
+                osc.stop(now + 0.6);
+            } else if (type === 'squid') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(90, now);
+                osc.frequency.linearRampToValueAtTime(30, now + 1.2);
+                gainNode.gain.setValueAtTime(0.15, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+                osc.start(now);
+                osc.stop(now + 1.2);
+            } else if (type === 'sizzle') {
+                // Sizzling noise for cooking
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.linearRampToValueAtTime(1500, now + 1.5);
+                gainNode.gain.setValueAtTime(0.12, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
+                osc.start(now);
+                osc.stop(now + 1.5);
+            }
+        }
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 컨베이어 벨트 위치 설계
+        const conveyor = {
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 25,
+            direction: 1
+        };
+
+        function initConveyor() {
+            conveyor.x = canvas.width * 0.55;
+            conveyor.y = canvas.height * 0.32;
+            conveyor.width = canvas.width * 0.45;
+        }
+
+        // 반응형 해상도 설정 및 최소 기준값 보장
+        function resizeCanvas() {
+            const parent = canvas.parentElement;
+            const containerWidth = (parent ? parent.clientWidth : 0) || 800; 
+            canvas.width = containerWidth;
+            canvas.height = containerWidth * 0.75; // 4:3 비율 고정
+            initConveyor();
+        }
+
+        // 확장된 어종별 특징 데이터 셋 (어류, 패류, 연체류 전수 확보)
+        const speciesData = {
+            '고등어': { type: 'fish', color: '#1d4ed8', stripeColor: '#0f172a', size: 28, speed: 2.2, weight: 1.5, possible: ['filet', 'salt', 'can'], reward: 100 },
+            '연어': { type: 'fish', color: '#f97316', stripeColor: '#fecdd3', size: 38, speed: 1.6, weight: 3.5, possible: ['filet', 'round', 'can'], reward: 250 },
+            '대구': { type: 'fish', color: '#78716c', stripeColor: '#44403c', size: 45, speed: 1.2, weight: 4.5, possible: ['filet', 'round', 'can'], reward: 300 },
+            '광어': { type: 'fish', color: '#854d0e', stripeColor: '#a16207', size: 35, speed: 0.8, weight: 2.8, possible: ['filet', 'can'], reward: 200 },
+            '조개': { type: 'shell', color: '#e2e8f0', stripeColor: '#94a3b8', size: 22, speed: 0.3, weight: 1.0, possible: ['boiled', 'can'], reward: 80 },
+            '꼬막': { type: 'shell', color: '#7c2d12', stripeColor: '#f97316', size: 20, speed: 0.2, weight: 0.8, possible: ['boiled', 'can'], reward: 90 },
+            '꽃게': { type: 'crab', color: '#f87171', stripeColor: '#dc2626', size: 26, speed: 0.6, weight: 1.2, possible: ['boiled', 'can'], reward: 150 },
+            '문어': { type: 'octopus', color: '#be123c', stripeColor: '#881337', size: 36, speed: 1.4, weight: 3.0, possible: ['boiled', 'can'], reward: 220 },
+            '오징어': { type: 'cephalopod', color: '#fda4af', stripeColor: '#f43f5e', size: 30, speed: 2.6, weight: 1.8, possible: ['boiled', 'can'], reward: 180 }
+        };
+
+        // 게임 핵심 상태 변수
+        let score = 0;
+        let grabbedSeafood = null; 
+        let targetProcessSeafood = null; 
+        let inventory = []; 
+        let marineLife = [];
+        let bubbles = []; // 수조 물거품
+        let seaweedLines = []; // 살랑거리는 장식용 해초선
+
+        // 요리 연구소 핵심 상태 변수들
+        let selectedKitchenIngredients = []; // 냄비에 담긴 식재료 (최대 2개)
+        let formulatedRecipes = []; // 현재 연구된 레시피 세트
+        let activeChosenRecipe = null; // 조리 시작을 위해 선택한 레시피
+        let isCookingActive = false; // 요리가 지글지글 진행중인지 여부
+
+        // 인형뽑기 집게 크레인 상태
+        const claw = {
+            x: 100,
+            y: 50,
+            baseY: 45,
+            width: 50,
+            height: 35,
+            state: 'idle', // idle, dropping, grabbing, retracting, transporting, releasing, resetting
+            speed: 5,
+            dropTargetY: 0,
+            grabTimer: 0,
+            lineLength: 0
+        };
+
+        function spawnSeafood(name) {
+            const spec = speciesData[name];
+            // 바닥 서식 생물들이 완벽하게 보이도록 Y축의 층계를 높여 안전한 가시구역에 배치
+            let spawnY = canvas.height * 0.45 + Math.random() * (canvas.height * 0.32);
+            
+            if (spec.type === 'shell' || spec.type === 'crab') {
+                spawnY = canvas.height * 0.82 + Math.random() * (canvas.height * 0.05); // 모래 침대 바로 윗선에 일렬 배치
+            } else if (name === '광어') {
+                spawnY = canvas.height * 0.80 + Math.random() * (canvas.height * 0.04); // 바닥 납작 고기 전용
+            }
+
+            const scale = canvas.width / 800;
+
+            return {
+                id: Math.random().toString(36).substr(2, 9),
+                name: name,
+                type: spec.type,
+                x: Math.random() * canvas.width,
+                y: spawnY,
+                speed: spec.speed * (0.8 + Math.random() * 0.4) * (Math.random() > 0.5 ? 1 : -1),
+                color: spec.color,
+                stripeColor: spec.stripeColor,
+                size: spec.size * scale, 
+                wiggle: Math.random() * Math.PI
+            };
+        }
+
+        function initSeafood() {
+            marineLife = [];
+            // 풍성한 바다 연출을 위해 각 품목별 스폰 수량을 풍족히 준비
+            Object.keys(speciesData).forEach(name => {
+                const spec = speciesData[name];
+                let spawnCount = 2;
+                if (spec.type === 'shell' || spec.type === 'crab' || name === '광어') {
+                    spawnCount = 4; // 바닥 생물 대폭 보강
+                } else if (name === '고등어' || name === '오징어') {
+                    spawnCount = 3;
+                }
+                
+                for (let i = 0; i < spawnCount; i++) {
+                    marineLife.push(spawnSeafood(name));
+                }
+            });
+
+            // 물거품 파티클 채우기
+            bubbles = [];
+            for (let i = 0; i < 25; i++) {
+                bubbles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 3.5 + 1,
+                    speed: Math.random() * 1.2 + 0.4
+                });
+            }
+
+            // 흔들리는 해초 선 정의
+            seaweedLines = [];
+            for (let i = 0; i < 8; i++) {
+                seaweedLines.push({
+                    x: (canvas.width * 0.1) + (i * (canvas.width * 0.11)),
+                    height: canvas.height * 0.18 + Math.random() * (canvas.height * 0.12),
+                    phase: Math.random() * Math.PI,
+                    speed: 0.02 + Math.random() * 0.015
+                });
+            }
+        }
+
+        function updatePhysics() {
+            // 물고기 위치 업데이트
+            marineLife.forEach(item => {
+                item.x += item.speed;
+                item.wiggle += 0.06;
+                
+                // 화면 경계 충돌 처리 (반대편 래핑)
+                if (item.x < -item.size * 2 && item.speed < 0) {
+                    item.x = canvas.width + item.size;
+                } else if (item.x > canvas.width + item.size * 2 && item.speed > 0) {
+                    item.x = -item.size;
+                }
+            });
+
+            // 방울 파티클 상승 효과
+            bubbles.forEach(b => {
+                b.y -= b.speed;
+                if (b.y < 0) {
+                    b.y = canvas.height;
+                    b.x = Math.random() * canvas.width;
+                }
+            });
+
+            // 크레인 좌표 동적 바인딩
+            claw.baseY = canvas.height * 0.12;
+            conveyor.y = canvas.height * 0.35;
+            conveyor.width = canvas.width * 0.45;
+            conveyor.x = canvas.width * 0.55;
+
+            // 크레인 동작 상태 머신
+            if (claw.state === 'dropping') {
+                claw.y += claw.speed;
+                if (claw.y >= claw.dropTargetY) {
+                    claw.state = 'grabbing';
+                    claw.grabTimer = 0;
+                    
+                    // 집게 충돌 판정 (어류/패류/연체류 전수 스캔)
+                    let grabbedIndex = -1;
+                    let minDistance = 9999;
+
+                    for (let i = 0; i < marineLife.length; i++) {
+                        const item = marineLife[i];
+                        const dx = item.x - claw.x;
+                        const dy = item.y - claw.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+
+                        // 집게 영역 안으로 충돌 판정 완화 (인형뽑기 안정감 향상)
+                        if (dist < item.size + 35) {
+                            if (dist < minDistance) {
+                                minDistance = dist;
+                                grabbedIndex = i;
+                            }
+                        }
+                    }
+
+                    if (grabbedIndex !== -1) {
+                        grabbedSeafood = marineLife[grabbedIndex];
+                        marineLife.splice(grabbedIndex, 1); // 수역에서 제거
+                        playSound('catch');
+                        
+                        if (grabbedSeafood.name === '오징어') {
+                            triggerSquidInk();
+                        }
+                    }
+                }
+            } else if (claw.state === 'grabbing') {
+                claw.grabTimer += 1;
+                if (claw.grabTimer > 20) {
+                    claw.state = 'retracting';
+                }
+            } else if (claw.state === 'retracting') {
+                // 잡은 물고기 무게가 무거울수록 상승 속도 페널티 부여하여 손맛 구현!
+                let weightPenalty = grabbedSeafood ? speciesData[grabbedSeafood.name].weight : 0.0;
+                claw.y -= Math.max(1.8, claw.speed - (weightPenalty * 0.45));
+
+                if (grabbedSeafood) {
+                    grabbedSeafood.x = claw.x;
+                    grabbedSeafood.y = claw.y + 25;
+                }
+
+                if (claw.y <= claw.baseY) {
+                    claw.y = claw.baseY;
+                    claw.state = 'transporting';
+                }
+            } else if (claw.state === 'transporting') {
+                // 컨베이어 벨트 낙하지점으로 가볍게 이송
+                const targetX = conveyor.x + 40;
+                if (claw.x < targetX) {
+                    claw.x += 4.5;
+                    if (grabbedSeafood) {
+                        grabbedSeafood.x = claw.x;
+                    }
+                } else {
+                    claw.state = 'releasing';
+                }
+            } else if (claw.state === 'releasing') {
+                if (grabbedSeafood) {
+                    targetProcessSeafood = grabbedSeafood;
+                    targetProcessSeafood.x = conveyor.x + 40;
+                    targetProcessSeafood.y = conveyor.y - targetProcessSeafood.size * 0.5;
+                    grabbedSeafood = null;
+                    
+                    updateProcessButtons(targetProcessSeafood.name);
+                }
+                claw.state = 'resetting';
+            } else if (claw.state === 'resetting') {
+                if (claw.x > 100) {
+                    claw.x -= 5.5;
+                } else {
+                    claw.x = 100;
+                    claw.state = 'idle';
+                }
+            }
+        }
+
+        // 오징어 잉크 차단 기믹
+        function triggerSquidInk() {
+            playSound('squid');
+            const ink = document.getElementById('inkOverlay');
+            ink.classList.remove('opacity-0');
+            ink.classList.add('opacity-100');
+            
+            setTimeout(() => {
+                ink.classList.remove('opacity-100');
+                ink.classList.add('opacity-0');
+            }, 3000);
+        }
+
+        // 가공 옵션 어종 매칭에 따른 실시간 활성화 구조
+        function updateProcessButtons(name) {
+            const spec = speciesData[name];
+            document.getElementById('targetSpeciesBadge').innerText = `${name} 대기 중`;
+            document.getElementById('targetSpeciesBadge').className = "text-[10px] bg-emerald-950 text-emerald-400 px-2 py-0.5 rounded-md font-bold retro-font neon-text-emerald animate-pulse";
+
+            const buttons = document.querySelectorAll('.process-btn');
+            buttons.forEach(btn => {
+                const processType = btn.getAttribute('data-type');
+                if (spec.possible.includes(processType)) {
+                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    btn.classList.add('hover:bg-slate-800', 'border-emerald-500/50');
+                    btn.disabled = false;
+                } else {
+                    btn.classList.add('opacity-50', 'cursor-not-allowed');
+                    btn.classList.remove('hover:bg-slate-800', 'border-emerald-500/50');
+                    btn.disabled = true;
+                }
+            });
+        }
+
+        let activeProcessAnimation = null;
+
+        function triggerProcess(method) {
+            if (!targetProcessSeafood) return;
+            playSound('process');
+            
+            const item = targetProcessSeafood;
+            targetProcessSeafood = null; 
+
+            resetProcessPanel();
+
+            // 가공 이펙트 구조체 세팅
+            activeProcessAnimation = {
+                x: conveyor.x + 40,
+                y: conveyor.y - 10,
+                timer: 0,
+                maxTime: 45,
+                method: method,
+                name: item.name
+            };
+
+            score += speciesData[item.name].reward;
+            document.getElementById('scoreVal').innerText = score.toString().padStart(4, '0');
+        }
+
+        function resetProcessPanel() {
+            document.getElementById('targetSpeciesBadge').innerText = "대기 중";
+            document.getElementById('targetSpeciesBadge').className = "text-[10px] bg-slate-800 text-emerald-400 px-2 py-0.5 rounded-md font-bold retro-font";
+            const buttons = document.querySelectorAll('.process-btn');
+            buttons.forEach(btn => {
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+                btn.classList.remove('hover:bg-slate-800', 'border-emerald-500/50');
+                btn.disabled = true;
+            });
+        }
+
+        function drawScene() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. 깊은 바다 그라데이션 배경
+            let oceanGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            oceanGrad.addColorStop(0, '#020617'); 
+            oceanGrad.addColorStop(0.3, '#0b1329'); 
+            oceanGrad.addColorStop(0.7, '#111e3b'); 
+            oceanGrad.addColorStop(1, '#050b18'); 
+            ctx.fillStyle = oceanGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 빛내림 조명
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.02)';
+            ctx.beginPath();
+            ctx.moveTo(canvas.width * 0.15, 0);
+            ctx.lineTo(canvas.width * 0.45, canvas.height);
+            ctx.lineTo(canvas.width * 0.65, canvas.height);
+            ctx.lineTo(canvas.width * 0.35, 0);
+            ctx.fill();
+
+            // 수질 정화 물방울 그리기
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.13)';
+            bubbles.forEach(b => {
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, b.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // 2. 바닥 생물의 가시성을 비약적으로 높이는 해저 모래 및 발광 산호초 단면 드로잉
+            ctx.fillStyle = '#231842'; // 깊은 자색 해저층 
+            ctx.fillRect(0, canvas.height * 0.86, canvas.width, canvas.height * 0.14);
+            
+            // 해저 최상단 모래 레이어 (빛 반사율 상향 조정)
+            ctx.fillStyle = '#4c2885'; // 해초와 고기 실루엣을 부각시키는 연보라 샌드 크러스트
+            ctx.fillRect(0, canvas.height * 0.86, canvas.width, 5);
+
+            // 갯벌 유기물 레이어 추가
+            ctx.fillStyle = '#170f2d'; 
+            ctx.fillRect(0, canvas.height * 0.92, canvas.width, canvas.height * 0.08);
+
+            // 살랑거리는 초록빛 해초 레이어 드로잉 (어촌 현장감 부여 및 깊이감 상승)
+            ctx.strokeStyle = 'rgba(16, 185, 129, 0.55)';
+            ctx.lineWidth = 4.5;
+            ctx.lineCap = 'round';
+            seaweedLines.forEach(sw => {
+                sw.phase += sw.speed;
+                const waveOffset = Math.sin(sw.phase) * 15;
+                
+                ctx.beginPath();
+                ctx.moveTo(sw.x, canvas.height * 0.87);
+                ctx.bezierCurveTo(
+                    sw.x - waveOffset * 0.4, canvas.height * 0.87 - sw.height * 0.3,
+                    sw.x + waveOffset * 0.6, canvas.height * 0.87 - sw.height * 0.6,
+                    sw.x + waveOffset, canvas.height * 0.87 - sw.height
+                );
+                ctx.stroke();
+
+                // 미니 해초 잎사귀 추가
+                ctx.fillStyle = 'rgba(52, 211, 153, 0.6)';
+                ctx.beginPath();
+                ctx.arc(sw.x + waveOffset, canvas.height * 0.87 - sw.height, 4, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // 3. 해양 수산 생물 드로잉
+            marineLife.forEach(item => {
+                drawSeafoodItem(ctx, item);
+            });
+
+            // 4. 가공 컨베이어 벨트 장치 렌더링
+            ctx.fillStyle = '#1e293b'; 
+            ctx.fillRect(conveyor.x, conveyor.y, conveyor.width, conveyor.height);
+            
+            // 전송선 사선 시각 패턴
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 3.5;
+            for (let offset = 0; offset < conveyor.width; offset += 25) {
+                const scrollX = conveyor.x + offset + (Date.now() / 20) % 25;
+                if (scrollX < conveyor.x + conveyor.width) {
+                    ctx.beginPath();
+                    ctx.moveTo(scrollX, conveyor.y);
+                    ctx.lineTo(scrollX - 8, conveyor.y + conveyor.height);
+                    ctx.stroke();
+                }
+            }
+
+            // HACCP 대기 표시선 간판
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(conveyor.x + 10, conveyor.y - 18, 60, 14);
+            ctx.fillStyle = '#f87171';
+            ctx.font = 'bold 9px DungGeunMo';
+            ctx.fillText("HACCP 대기", conveyor.x + 12, conveyor.y - 8);
+
+            // 벨트 위 대기 생물
+            if (targetProcessSeafood) {
+                drawSeafoodItem(ctx, targetProcessSeafood);
+            }
+
+            // 5. 크레인 와이어 그리기
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(claw.x, claw.baseY);
+            ctx.lineTo(claw.x, claw.y);
+            ctx.stroke();
+
+            // 6. 집게발 기계 하우징 렌더링
+            ctx.save();
+            ctx.translate(claw.x, claw.y);
+
+            ctx.fillStyle = '#10b981';
+            ctx.fillRect(-15, -10, 30, 20);
+            ctx.fillStyle = '#047857';
+            ctx.fillRect(-15, -12, 30, 4);
+
+            // 작동 감지 신호 네온 램프
+            ctx.fillStyle = claw.state === 'grabbing' ? '#ef4444' : '#10b981';
+            ctx.beginPath();
+            ctx.arc(0, 0, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 왼쪽 조인트 집게발
+            ctx.save();
+            ctx.translate(-10, 8);
+            if (claw.state === 'grabbing' || claw.state === 'retracting' || claw.state === 'transporting') {
+                ctx.rotate(Math.PI * 0.15); 
+            } else {
+                ctx.rotate(-Math.PI * 0.15); 
+            }
+            ctx.strokeStyle = '#34d399';
+            ctx.lineWidth = 5.5;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.quadraticCurveTo(-15, 15, -8, 28);
+            ctx.stroke();
+            ctx.restore();
+
+            // 오른쪽 조인트 집게발
+            ctx.save();
+            ctx.translate(10, 8);
+            if (claw.state === 'grabbing' || claw.state === 'retracting' || claw.state === 'transporting') {
+                ctx.rotate(-Math.PI * 0.15); 
+            } else {
+                ctx.rotate(Math.PI * 0.15); 
+            }
+            ctx.strokeStyle = '#34d399';
+            ctx.lineWidth = 5.5;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.quadraticCurveTo(15, 15, 8, 28);
+            ctx.stroke();
+            ctx.restore();
+
+            ctx.restore();
+
+            // 집게발로 정지 고정 수거 상태 생물 렌더링
+            if (grabbedSeafood) {
+                drawSeafoodItem(ctx, grabbedSeafood);
+            }
+
+            // 7. 가공 공정 전용 불꽃 스파크 쇼 및 가공 연출
+            if (activeProcessAnimation) {
+                const anim = activeProcessAnimation;
+                anim.timer += 1;
+
+                // 칼날 전단 스파크 파티클
+                ctx.fillStyle = '#f59e0b';
+                for (let i = 0; i < 8; i++) {
+                    const sparkX = anim.x + (Math.random() - 0.5) * 45;
+                    const sparkY = anim.y + (Math.random() - 0.5) * 25;
+                    ctx.beginPath();
+                    ctx.arc(sparkX, sparkY, Math.random() * 3.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                if (anim.method === 'filet') {
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.moveTo(anim.x - 22, anim.y - 12 + (anim.timer % 8));
+                    ctx.lineTo(anim.x + 22, anim.y + 12 - (anim.timer % 8));
+                    ctx.stroke();
+                } else if (anim.method === 'boiled') {
+                    ctx.fillStyle = 'rgba(253, 244, 245, 0.45)';
+                    ctx.beginPath();
+                    ctx.arc(anim.x, anim.y - 10 - (anim.timer % 12), 7 + (anim.timer % 5), 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (anim.method === 'can') {
+                    ctx.fillStyle = '#64748b';
+                    ctx.fillRect(anim.x - 16, anim.y - 30, 32, 16 + Math.sin(anim.timer * 0.5) * 8);
+                }
+
+                // 가공 타이머 완성 시 인벤토리 보관함으로 자동 인입
+                if (anim.timer >= anim.maxTime) {
+                    addProcessedItemToInventory(anim.name, anim.method);
+                    activeProcessAnimation = null;
+                }
+            }
+        }
+
+        function drawSeafoodItem(cCtx, item) {
+            cCtx.save();
+            cCtx.translate(item.x, item.y);
+            
+            // 속도 방향에 맞춘 수영 대칭 반전
+            if (item.speed < 0) {
+                cCtx.scale(-1, 1);
+            }
+
+            const tailWiggle = Math.sin(item.wiggle) * 0.28;
+
+            // 바닥에 있는 조개나 광어가 더욱 돋보이도록 아웃라인 그림자 광채(Glow) 효과 추가
+            cCtx.shadowBlur = 6;
+            cCtx.shadowColor = item.color;
+
+            if (item.type === 'fish') {
+                cCtx.fillStyle = item.color;
+                
+                if (item.name === '광어') {
+                    // 넓적한 광어 특징 렌더링
+                    cCtx.beginPath();
+                    cCtx.ellipse(0, 0, item.size * 0.9, item.size * 0.55, 0, 0, Math.PI * 2);
+                    cCtx.fill();
+                    
+                    cCtx.fillStyle = '#f8fafc';
+                    cCtx.beginPath();
+                    cCtx.arc(-item.size * 0.4, -item.size * 0.12, 4, 0, Math.PI * 2);
+                    cCtx.arc(-item.size * 0.4, -item.size * 0.26, 4, 0, Math.PI * 2);
+                    cCtx.fill();
+                    
+                    cCtx.fillStyle = '#000000';
+                    cCtx.beginPath();
+                    cCtx.arc(-item.size * 0.4, -item.size * 0.12, 2, 0, Math.PI * 2);
+                    cCtx.arc(-item.size * 0.4, -item.size * 0.26, 2, 0, Math.PI * 2);
+                    cCtx.fill();
+                } else {
+                    // 고등어, 대구, 연어 등 일반 어종 몸통
+                    cCtx.beginPath();
+                    cCtx.ellipse(0, 0, item.size * 0.72, item.size * 0.36, 0, 0, Math.PI * 2);
+                    cCtx.fill();
+                    
+                    // 장식 등 줄무늬
+                    cCtx.fillStyle = item.stripeColor;
+                    cCtx.beginPath();
+                    cCtx.moveTo(-item.size * 0.15, -item.size * 0.32);
+                    cCtx.lineTo(-item.size * 0.04, -item.size * 0.1);
+                    cCtx.lineTo(item.size * 0.15, -item.size * 0.32);
+                    cCtx.fill();
+
+                    // 눈알
+                    cCtx.fillStyle = '#ffffff';
+                    cCtx.beginPath();
+                    cCtx.arc(-item.size * 0.42, -item.size * 0.08, 5, 0, Math.PI * 2);
+                    cCtx.fill();
+                    cCtx.fillStyle = '#000000';
+                    cCtx.beginPath();
+                    cCtx.arc(-item.size * 0.44, -item.size * 0.08, 2.5, 0, Math.PI * 2);
+                    cCtx.fill();
+                }
+
+                // 꼬리 액션 물리
+                cCtx.save();
+                cCtx.translate(item.size * 0.7, 0);
+                cCtx.rotate(tailWiggle);
+                cCtx.fillStyle = item.stripeColor;
+                cCtx.beginPath();
+                cCtx.moveTo(0, 0);
+                cCtx.lineTo(item.size * 0.32, -item.size * 0.24);
+                cCtx.lineTo(item.size * 0.2, 0);
+                cCtx.lineTo(item.size * 0.32, item.size * 0.24);
+                cCtx.closePath();
+                cCtx.fill();
+                cCtx.restore();
+
+            } else if (item.type === 'shell') {
+                // 조개, 꼬막 렌더링
+                cCtx.fillStyle = item.color;
+                cCtx.beginPath();
+                cCtx.moveTo(-item.size, item.size * 0.4);
+                cCtx.quadraticCurveTo(0, -item.size * 1.1, item.size, item.size * 0.4);
+                cCtx.closePath();
+                cCtx.fill();
+
+                cCtx.strokeStyle = item.stripeColor;
+                cCtx.lineWidth = 2.5;
+                for (let angle = -0.4; angle <= 0.4; angle += 0.2) {
+                    cCtx.beginPath();
+                    cCtx.moveTo(0, -item.size * 0.1);
+                    cCtx.lineTo(Math.sin(angle) * item.size, item.size * 0.38);
+                    cCtx.stroke();
+                }
+            } else if (item.type === 'crab') {
+                // 게 껍질 및 다리 몸통 렌더링
+                cCtx.fillStyle = item.color;
+                cCtx.beginPath();
+                cCtx.ellipse(0, 0, item.size * 0.8, item.size * 0.5, 0, 0, Math.PI * 2);
+                cCtx.fill();
+
+                // 게 눈 두개
+                cCtx.fillStyle = '#ffffff';
+                cCtx.beginPath();
+                cCtx.arc(-item.size * 0.3, -item.size * 0.45, 3.5, 0, Math.PI * 2);
+                cCtx.arc(item.size * 0.3, -item.size * 0.45, 3.5, 0, Math.PI * 2);
+                cCtx.fill();
+                cCtx.fillStyle = '#000000';
+                cCtx.beginPath();
+                cCtx.arc(-item.size * 0.3, -item.size * 0.45, 1.8, 0, Math.PI * 2);
+                cCtx.arc(item.size * 0.3, -item.size * 0.45, 1.8, 0, Math.PI * 2);
+                cCtx.fill();
+
+                // 게 양쪽 집게발
+                cCtx.strokeStyle = item.color;
+                cCtx.lineWidth = 4;
+                cCtx.beginPath();
+                cCtx.moveTo(-item.size * 0.5, -item.size * 0.1);
+                cCtx.quadraticCurveTo(-item.size * 0.9, -item.size * 0.6, -item.size * 0.6, -item.size * 0.8);
+                cCtx.moveTo(item.size * 0.5, -item.size * 0.1);
+                cCtx.quadraticCurveTo(item.size * 0.9, -item.size * 0.6, item.size * 0.6, -item.size * 0.8);
+                ctx.stroke();
+
+                // 게 다리들
+                cCtx.lineWidth = 2.5;
+                for (let i = 0; i < 3; i++) {
+                    const offset = i * 6 - 6;
+                    cCtx.beginPath();
+                    cCtx.moveTo(-item.size * 0.6, offset);
+                    cCtx.lineTo(-item.size * 1.1, offset + 8 + Math.sin(item.wiggle) * 4);
+                    cCtx.moveTo(item.size * 0.6, offset);
+                    cCtx.lineTo(item.size * 1.1, offset + 8 + Math.sin(item.wiggle) * 4);
+                    cCtx.stroke();
+                }
+            } else if (item.type === 'octopus' || item.type === 'cephalopod') {
+                // 문어 및 오징어 렌더링
+                cCtx.fillStyle = item.color;
+                cCtx.beginPath();
+                cCtx.ellipse(0, 0, item.size * 0.6, item.size * 0.45, 0, 0, Math.PI * 2);
+                cCtx.fill();
+
+                // 문어 눈동자
+                cCtx.fillStyle = '#ffffff';
+                cCtx.beginPath();
+                cCtx.arc(-item.size * 0.25, -item.size * 0.08, 5, 0, Math.PI * 2);
+                cCtx.arc(item.size * 0.25, -item.size * 0.08, 5, 0, Math.PI * 2);
+                cCtx.fill();
+                cCtx.fillStyle = '#000000';
+                cCtx.beginPath();
+                cCtx.arc(-item.size * 0.25, -item.size * 0.08, 2.5, 0, Math.PI * 2);
+                cCtx.arc(item.size * 0.25, -item.size * 0.08, 2.5, 0, Math.PI * 2);
+                cCtx.fill();
+
+                // 문어/오징어 8가닥 다리 물결 연출
+                cCtx.strokeStyle = item.color;
+                cCtx.lineWidth = 3.8;
+                cCtx.lineCap = 'round';
+                const legCount = item.type === 'octopus' ? 6 : 4;
+                for (let i = 0; i < legCount; i++) {
+                    const legOffset = (i - (legCount - 1) / 2) * 8;
+                    const legWiggle = Math.sin(item.wiggle + i * 0.6) * 11;
+                    cCtx.beginPath();
+                    cCtx.moveTo(legOffset, item.size * 0.2);
+                    cCtx.quadraticCurveTo(legOffset + legWiggle * 0.4, item.size * 0.7, legOffset + legWiggle, item.size * 1.2);
+                    cCtx.stroke();
+                }
+            }
+
+            cCtx.restore();
+        }
+
+        const methodMapKr = {
+            'filet': '순살 필렛',
+            'round': '라운드 원물',
+            'salt': '자반 염장',
+            'boiled': '자숙/해감',
+            'can': 'HACCP 멸균 통조림'
+        };
+
+        function addProcessedItemToInventory(speciesName, method) {
+            const newItem = {
+                id: 'item_' + Date.now() + Math.random().toString(36).substr(2, 4),
+                species: speciesName,
+                method: method,
+                time: new Date().toLocaleTimeString('ko-KR')
+            };
+
+            inventory.unshift(newItem); 
+            updateInventoryUI();
+            playSound('coin');
+            
+            // 수조 속 생태 밸런스 유지를 위해 즉시 새로운 품종 스폰
+            marineLife.push(spawnSeafood(speciesName));
+
+            // 납품 요구 조건 갱신 체크
+            checkContractCompletion();
+        }
+
+        function updateInventoryUI() {
+            const container = document.getElementById('inventorySlots');
+            document.getElementById('invCount').innerText = `${inventory.length} / 60`;
+
+            if (inventory.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-4 flex items-center justify-center h-full text-gray-600 text-[11px] retro-font">
+                        보관된 가공품이 없습니다.
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            inventory.forEach(item => {
+                const methodKr = methodMapKr[item.method] || item.method;
+                
+                let itemIcon = 'fa-prescription-bottle';
+                if (item.method === 'filet') itemIcon = 'fa-bacon';
+                else if (item.method === 'round') itemIcon = 'fa-fish';
+                else if (item.method === 'salt') itemIcon = 'fa-mortar-pestle';
+                else if (item.method === 'boiled') itemIcon = 'fa-dumpster-fire';
+
+                // 현재 요리 연구소에 대기중으로 탑재된 인덱스인지 조회하여 보강 비주얼 획득
+                const inPotIndex = selectedKitchenIngredients.findIndex(loaded => loaded.id === item.id);
+                const isSelectedClass = inPotIndex !== -1 
+                    ? 'border-red-500 bg-red-950/40 ring-2 ring-red-500/50' 
+                    : 'border-gray-700 hover:border-violet-500 bg-slate-800 hover:bg-slate-750';
+
+                html += `
+                    <div onclick="toggleKitchenPotIngredient('${item.id}')" class="group relative ${isSelectedClass} rounded-xl p-1.5 flex flex-col items-center justify-center cursor-pointer transition-all shadow-md active:scale-95">
+                        ${inPotIndex !== -1 ? `
+                        <div class="absolute top-1 right-1 w-3 h-3 bg-red-500 text-[7px] text-white rounded-full flex items-center justify-center font-bold">
+                            ${inPotIndex + 1}
+                        </div>` : ''}
+                        <i class="fa-solid ${itemIcon} text-md text-violet-400 group-hover:text-emerald-400 transition-colors"></i>
+                        <span class="text-[9px] font-bold text-gray-300 mt-1 text-center truncate w-full">${item.species}</span>
+                        <span class="text-[8px] text-gray-500 text-center truncate w-full">${methodKr}</span>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        // --- 요리 연구소 (Gourmet Cooking Lab) 비즈니스 로직 ---
+        function toggleKitchenPotIngredient(itemId) {
+            const item = inventory.find(i => i.id === itemId);
+            if (!item) return;
+
+            const existingIndex = selectedKitchenIngredients.findIndex(loaded => loaded.id === itemId);
+
+            if (existingIndex !== -1) {
+                // 이미 들어있는 경우 냄비에서 언로드
+                selectedKitchenIngredients.splice(existingIndex, 1);
+            } else {
+                // 새로 적재
+                if (selectedKitchenIngredients.length >= 2) {
+                    alertBox("식재료는 최대 2개까지만 냄비에 담을 수 있습니다!");
+                    return;
+                }
+                selectedKitchenIngredients.push(item);
+                playSound('coin');
+            }
+
+            updateKitchenPotUI();
+            updateInventoryUI();
+        }
+
+        function unloadIngredient(slotIndex) {
+            if (selectedKitchenIngredients[slotIndex]) {
+                selectedKitchenIngredients.splice(slotIndex, 1);
+                playSound('coin');
+                updateKitchenPotUI();
+                updateInventoryUI();
+            }
+        }
+
+        function updateKitchenPotUI() {
+            const potSlot1 = document.getElementById('potSlot1');
+            const potSlot2 = document.getElementById('potSlot2');
+            const btnDevelop = document.getElementById('btnDevelopRecipes');
+
+            // 슬롯 1 설정
+            if (selectedKitchenIngredients[0]) {
+                const item = selectedKitchenIngredients[0];
+                const methodKr = methodMapKr[item.method] || item.method;
+                potSlot1.innerHTML = `
+                    <div class="text-center">
+                        <p class="text-[10px] font-bold text-emerald-400 truncate w-12">${item.species}</p>
+                        <p class="text-[8px] text-gray-400 truncate w-12">${methodKr}</p>
+                    </div>
+                `;
+                potSlot1.className = "w-14 h-14 rounded-xl border-2 border-emerald-500 bg-slate-900 flex flex-col items-center justify-center cursor-pointer hover:border-red-500 transition-colors";
+            } else {
+                potSlot1.innerHTML = `<span class="text-gray-600 text-[10px] retro-font">비었음</span>`;
+                potSlot1.className = "w-14 h-14 rounded-xl border-2 border-dashed border-gray-700 bg-slate-950 flex flex-col items-center justify-center cursor-pointer hover:border-red-500 transition-colors";
+            }
+
+            // 슬롯 2 설정
+            if (selectedKitchenIngredients[1]) {
+                const item = selectedKitchenIngredients[1];
+                const methodKr = methodMapKr[item.method] || item.method;
+                potSlot2.innerHTML = `
+                    <div class="text-center">
+                        <p class="text-[10px] font-bold text-emerald-400 truncate w-12">${item.species}</p>
+                        <p class="text-[8px] text-gray-400 truncate w-12">${methodKr}</p>
+                    </div>
+                `;
+                potSlot2.className = "w-14 h-14 rounded-xl border-2 border-emerald-500 bg-slate-900 flex flex-col items-center justify-center cursor-pointer hover:border-red-500 transition-colors";
+            } else {
+                potSlot2.innerHTML = `<span class="text-gray-600 text-[10px] retro-font">비었음</span>`;
+                potSlot2.className = "w-14 h-14 rounded-xl border-2 border-dashed border-gray-700 bg-slate-950 flex flex-col items-center justify-center cursor-pointer hover:border-red-500 transition-colors";
+            }
+
+            // 레시피 개발 버튼 활성화 여부
+            if (selectedKitchenIngredients.length > 0) {
+                btnDevelop.classList.remove('opacity-50', 'cursor-not-allowed');
+                btnDevelop.disabled = false;
+            } else {
+                btnDevelop.classList.add('opacity-50', 'cursor-not-allowed');
+                btnDevelop.disabled = true;
+            }
+        }
+
+        // Gemini API 혹은 로컬 데이터셋을 활용한 레시피 개발 구상
+        async function developRecipes() {
+            if (selectedKitchenIngredients.length === 0) return;
+
+            const panel = document.getElementById('kitchenDisplayPanel');
+            const fusionContainer = document.getElementById('fusionContainer');
+            fusionContainer.classList.remove('hidden');
+
+            panel.innerHTML = `
+                <div class="flex flex-col items-center justify-center pt-8 text-violet-400">
+                    <i class="fa-solid fa-circle-notch animate-spin text-2xl mb-2"></i>
+                    <span class="retro-font text-[10px]">AI 미식 연구원이 궁극의 레시피 조합을 시뮬레이션 중...</span>
+                </div>
+            `;
+
+            const extraIngredients = document.getElementById('extraIngredients').value.trim();
+
+            const ingredientsDesc = selectedKitchenIngredients.map(item => `${item.species}(${methodMapKr[item.method]})`).join("와 ");
+            const extraDesc = extraIngredients ? `, 추가 부재료인 [${extraIngredients}]` : "";
+
+            const userQuery = `내가 낚고 수확한 수산물 가공 재료인 [${ingredientsDesc}]${extraDesc}를 조합하여 
+            대한민국 고급 요식업장에서 선보일 수 있는 최고급 퓨전 한식/일식 스타일 요리 레시피 2가지를 만들어 주세요.
+            각 요리는 아래의 JSON 배열 규격에 철저히 맞춰 반환해야 합니다:
+            [
+              {
+                "title": "요리 이름 (예: 매콤 칼칼한 고등어 자반 통조림 조림)",
+                "summary": "침샘을 자극하는 요리에 대한 1줄 매혹적인 미식 묘사",
+                "point": 100~300 사이의 완성도 보상 정수,
+                "step1": "1단계 조리 방법",
+                "step2": "2단계 조리 방법",
+                "step3": "3단계 조리 방법"
+              }
+            ]`;
+
+            const finalApiKey = userApiKey || ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${finalApiKey}`;
+
+            try {
+                const payload = {
+                    contents: [{ parts: [{ text: userQuery }] }],
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "ARRAY",
+                            items: {
+                                type: "OBJECT",
+                                properties: {
+                                    "title": { "type": "STRING" },
+                                    "summary": { "type": "STRING" },
+                                    "point": { "type": "INTEGER" },
+                                    "step1": { "type": "STRING" },
+                                    "step2": { "type": "STRING" },
+                                    "step3": { "type": "STRING" }
+                                },
+                                "required": ["title", "summary", "point", "step1", "step2", "step3"]
+                            }
+                        }
+                    }
+                };
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) throw new Error("API_FAIL");
+
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                formulatedRecipes = JSON.parse(text);
+
+                renderRecipeSelectorUI();
+            } catch (err) {
+                // 오프라인/에러 시 즉시 안정적인 로컬 레시피 생성 엔진 가동
+                formulatedRecipes = generateLocalGourmetFallbackRecipes();
+                renderRecipeSelectorUI();
+            }
+        }
+
+        function renderRecipeSelectorUI() {
+            const panel = document.getElementById('kitchenDisplayPanel');
+            if (formulatedRecipes.length === 0) return;
+
+            let html = `
+                <div class="space-y-2">
+                    <p class="text-[10px] text-violet-300 font-bold retro-font"><i class="fa-solid fa-receipt mr-1"></i> 개발 완료된 레시피를 선택해 요리하세요!</p>
+                    <div class="grid grid-cols-1 gap-2">
+            `;
+
+            formulatedRecipes.forEach((recipe, idx) => {
+                html += `
+                    <div onclick="selectActiveRecipe(${idx})" id="recipeCard_${idx}" class="recipe-card p-2 bg-slate-900 border border-gray-800 hover:border-violet-500 rounded-lg cursor-pointer transition-all">
+                        <div class="flex justify-between items-center mb-0.5">
+                            <span class="font-bold text-emerald-400 text-[11px]">${recipe.title}</span>
+                            <span class="text-[9px] text-amber-400 font-bold retro-font">+${recipe.point} PTS</span>
+                        </div>
+                        <p class="text-[9px] text-gray-400 italic">${recipe.summary}</p>
+                    </div>
+                `;
+            });
+
+            html += `
+                    </div>
+                    <button id="btnStartCooking" onclick="startCookingProcess()" class="w-full bg-emerald-700 hover:bg-emerald-600 active:bg-emerald-800 text-white text-[11px] font-bold py-2 rounded-lg transition-all select-none opacity-50 cursor-not-allowed" disabled>
+                        <i class="fa-solid fa-fire-burner mr-1"></i> 조리 개시 (가마솥 가동!)
+                    </button>
+                </div>
+            `;
+
+            panel.innerHTML = html;
+            activeChosenRecipe = null;
+        }
+
+        function selectActiveRecipe(index) {
+            const cards = document.querySelectorAll('.recipe-card');
+            cards.forEach(card => card.classList.remove('border-emerald-500', 'bg-emerald-950/20'));
+
+            const selectedCard = document.getElementById(`recipeCard_${index}`);
+            if (selectedCard) {
+                selectedCard.classList.add('border-emerald-500', 'bg-emerald-950/20');
+            }
+
+            activeChosenRecipe = formulatedRecipes[index];
+            const btnCook = document.getElementById('btnStartCooking');
+            if (btnCook) {
+                btnCook.classList.remove('opacity-50', 'cursor-not-allowed');
+                btnCook.disabled = false;
+            }
+            playSound('coin');
+        }
+
+        // 지글지글 끓고 보글보글 끓어오르는 대화형 조리 시뮬레이션
+        function startCookingProcess() {
+            if (!activeChosenRecipe) return;
+
+            const panel = document.getElementById('kitchenDisplayPanel');
+            isCookingActive = true;
+            playSound('sizzle');
+
+            panel.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-6 text-emerald-400 relative">
+                    <!-- 보글보글 피지컬 이펙트 -->
+                    <div class="absolute inset-x-0 top-0 flex justify-center space-x-3 pointer-events-none">
+                        <span class="steam-bubble text-lg">💨</span>
+                        <span class="steam-bubble text-sm" style="animation-delay: 0.3s;">🫧</span>
+                        <span class="steam-bubble text-md" style="animation-delay: 0.6s;">♨️</span>
+                    </div>
+                    <i class="fa-solid fa-hot-tub-person text-3xl animate-bounce mb-3 text-red-500"></i>
+                    <span class="retro-font text-xs text-center animate-pulse">
+                        🔥 조리 진행 중! 가마솥 내부 온도 240℃ 가열 중...
+                    </span>
+                    <p class="text-[9px] text-gray-500 mt-2">수산물 성분과 야채가 조화롭게 어우러지고 있습니다...</p>
+                </div>
+            `;
+
+            // 요리 시뮬레이터 2.2초 가동 완료 후 요리 카드 획득
+            setTimeout(() => {
+                completeCookingProcess();
+            }, 2200);
+        }
+
+        function completeCookingProcess() {
+            isCookingActive = false;
+            playSound('catch');
+
+            const recipe = activeChosenRecipe;
+            
+            // 요리에 사용한 식재료 인벤토리에서 실질 소비
+            selectedKitchenIngredients.forEach(loaded => {
+                const idx = inventory.findIndex(i => i.id === loaded.id);
+                if (idx !== -1) {
+                    inventory.splice(idx, 1);
+                }
+            });
+
+            // 점수 업그레이드
+            score += recipe.point;
+            document.getElementById('scoreVal').innerText = score.toString().padStart(4, '0');
+
+            // 소모한 아이템 및 보관함 리셋
+            selectedKitchenIngredients = [];
+            updateKitchenPotUI();
+            updateInventoryUI();
+
+            const panel = document.getElementById('kitchenDisplayPanel');
+            panel.innerHTML = `
+                <div class="bg-gradient-to-r from-emerald-950/40 to-slate-900 p-2.5 rounded-xl border-2 border-emerald-500">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] font-bold text-emerald-400 retro-font"><i class="fa-solid fa-medal mr-1"></i> ⭐ 요리 완성! 대성공</span>
+                        <span class="text-[9px] bg-emerald-900 text-emerald-300 px-1.5 py-0.5 rounded font-bold">+${recipe.point} PTS</span>
+                    </div>
+                    <h3 class="text-xs font-bold text-gray-100 mb-1">🥘 ${recipe.title}</h3>
+                    <p class="text-[9px] text-gray-400 mb-2 italic">"${recipe.summary}"</p>
+                    <div class="text-[9px] bg-black/40 p-2 rounded border border-gray-800 space-y-1 text-gray-300">
+                        <p class="truncate"><b>1.</b> ${recipe.step1}</p>
+                        <p class="truncate"><b>2.</b> ${recipe.step2}</p>
+                        <p class="truncate"><b>3.</b> ${recipe.step3}</p>
+                    </div>
+                    <button onclick="resetKitchenPanel()" class="w-full mt-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-[10px] font-bold py-1.5 rounded transition-colors">
+                        접시 비우기 (새 요리 시작)
+                    </button>
+                </div>
+            `;
+
+            alertBox(`🎉 [${recipe.title}] 요리가 성공하여 ${recipe.point}점을 획득했습니다!`);
+            
+            // 납품 조건 등 UI 연쇄 갱신
+            checkContractCompletion();
+        }
+
+        function resetKitchenPanel() {
+            document.getElementById('kitchenDisplayPanel').innerHTML = `
+                <p class="text-gray-500 italic text-center pt-8">수확 보관함에서 가공품을 클릭해 요리 냄비에 담아주세요.<br>선택한 수산물로 만들 수 있는 미식 레시피가 생성됩니다.</p>
+            `;
+            document.getElementById('extraIngredients').value = "";
+            document.getElementById('fusionContainer').classList.add('hidden');
+        }
+
+        // 로컬 오프라인 전용 맛깔나는 미식 레시피 빌더 (폴백 디비)
+        function generateLocalGourmetFallbackRecipes() {
+            const main = selectedKitchenIngredients[0];
+            const sub = selectedKitchenIngredients[1];
+
+            const mainName = main ? `${main.species} ${methodMapKr[main.method]}` : "수산 원물";
+            const subName = sub ? `${sub.species} ${methodMapKr[sub.method]}` : "";
+
+            const recipe1Title = sub ? `궁극의 ${main.species} & ${sub.species} 전골` : `명품 칼칼한 ${main.species} 전골`;
+            const recipe2Title = sub ? `특제 ${main.species} ${sub.species} 갈릭 구이` : `소금 찹찹 ${main.species} 직화 석쇠 조림`;
+
+            return [
+                {
+                    title: recipe1Title,
+                    summary: "시원하고 진한 해물 육수가 깊게 밴 전통 가마솥 스타일 미식 전골",
+                    point: 150,
+                    step1: `${mainName}을(를) 정성껏 전골 냄비 바닥에 깔아 세팅합니다.`,
+                    step2: `${subName ? subName + '과(와)' : ''} 육수를 부어 한소끔 강하게 끓여냅니다.`,
+                    step3: "대파와 마늘, 기호에 맞는 청양고추를 넣어 마무리 칼칼함을 더합니다."
+                },
+                {
+                    title: recipe2Title,
+                    summary: "버터갈릭의 풍미와 수산물의 담백함이 황홀한 우마미를 선사하는 퓨전 팬 구이",
+                    point: 180,
+                    step1: "가열된 철판에 풍성한 버터와 다진 마늘을 얹어 튀기듯 가열합니다.",
+                    step2: `${mainName}의 양면을 앞뒤로 노릇하게 구워 마이아르 반응을 이끌어 냅니다.`,
+                    step3: `${subName ? subName + '의 풍미를 얹고' : ''} 가벼운 허브솔트로 감칠맛을 완성합니다.`
+                }
+            ];
+        }
+
+        let userApiKey = '';
+
+        function saveApiKey() {
+            const keyVal = document.getElementById('apiKeyInput').value.trim();
+            userApiKey = keyVal;
+            localStorage.setItem('fisher_claw_gemini_key', keyVal);
+            alertBox("API 키가 안전하게 적용되었습니다.");
+            
+            // 의뢰판 자동 갱신
+            generateNewAiContract();
+        }
+
+        function alertBox(msg) {
+            const box = document.createElement('div');
+            box.className = "fixed bottom-5 right-5 bg-emerald-900 border border-emerald-500 text-emerald-200 text-xs px-4 py-2.5 rounded-xl shadow-2xl z-50 retro-font animate-bounce";
+            box.innerText = `📢 ${msg}`;
+            document.body.appendChild(box);
+            setTimeout(() => {
+                box.remove();
+            }, 3000);
+        }
+
+        // --- 실시간 AI 수산물 납품 계약 의뢰 시스템 ---
+        let currentContract = null;
+
+        async function generateNewAiContract() {
+            const display = document.getElementById('contractDisplay');
+            display.innerHTML = `
+                <div class="text-center py-2 text-violet-400">
+                    <i class="fa-solid fa-spinner animate-spin"></i> 글로벌 시세와 수급 계약을 수집하는 중...
+                </div>
+            `;
+
+            const targetSpecies = Object.keys(speciesData);
+            const targetMethods = Object.keys(methodMapKr);
+
+            const userQuery = `대한민국의 수산 시장 및 고급 일식집, 해상 부두 식당 중 임의의 바이어가 요청할 만한 '수산 가공식품 납품 의뢰'를 1개 생성해 주세요.
+            반드시 아래 형식의 JSON 객체 1개만 반환해야 합니다:
+            {
+                "client": "바이어 식당/단체 이름 (예: 광안리 요트 클럽, 힐튼 수산 뷔페)",
+                "species": "고등어, 연어, 대구, 광어, 조개, 꼬막, 꽃게, 문어, 오징어 중 딱 1개 택일",
+                "method": "filet, round, salt, boiled, can 중 딱 1개 택일",
+                "count": 1에서 3 사이의 정수,
+                "rewardGold": 300에서 800 사이의 보너스 점수 정수,
+                "flavorText": "이 계약이 필요한 사유를 담은 레트로 위트 가득한 한줄 묘사"
+            }`;
+
+            const finalApiKey = userApiKey || ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${finalApiKey}`;
+
+            try {
+                const payload = {
+                    contents: [{ parts: [{ text: userQuery }] }],
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "OBJECT",
+                            properties: {
+                                "client": { "type": "STRING" },
+                                "species": { "type": "STRING" },
+                                "method": { "type": "STRING" },
+                                "count": { "type": "INTEGER" },
+                                "rewardGold": { "type": "INTEGER" },
+                                "flavorText": { "type": "STRING" }
+                            },
+                            "required": ["client", "species", "method", "count", "rewardGold", "flavorText"]
+                        }
+                    }
+                };
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) throw new Error("JSON_API_FAIL");
+
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                currentContract = JSON.parse(text);
+
+                renderContractUI();
+            } catch (err) {
+                // 백업 계약 생성 (로컬 오프라인 전용 무작위 생성 가드)
+                const fallbackClient = ["남포동 일식 대가", "자갈치 브라더스", "해운대 럭셔리 요트 연회장", "울릉도 오징어 물회 가맹점"][Math.floor(Math.random() * 4)];
+                const fallbackSpecies = targetSpecies[Math.floor(Math.random() * targetSpecies.length)];
+                const specData = speciesData[fallbackSpecies];
+                const fallbackMethod = specData.possible[Math.floor(Math.random() * specData.possible.length)];
+
+                currentContract = {
+                    client: fallbackClient,
+                    species: fallbackSpecies,
+                    method: fallbackMethod,
+                    count: Math.floor(Math.random() * 2) + 1,
+                    rewardGold: Math.floor(Math.random() * 300) + 200,
+                    flavorText: "전국적인 스마트 수산 대유행으로 긴급 주문이 도착했습니다!"
+                };
+                renderContractUI();
+            }
+        }
+
+        function renderContractUI() {
+            if (!currentContract) return;
+            const display = document.getElementById('contractDisplay');
+            const methodKr = methodMapKr[currentContract.method] || currentContract.method;
+            
+            // 인벤토리 수량 확인
+            const hasCount = inventory.filter(i => i.species === currentContract.species && i.method === currentContract.method).length;
+            const canComplete = hasCount >= currentContract.count;
+
+            display.innerHTML = `
+                <div class="space-y-1">
+                    <div class="flex justify-between items-center text-[10px]">
+                        <span class="font-bold text-emerald-400"><i class="fa-solid fa-store text-emerald-500"></i> ${currentContract.client}</span>
+                        <span class="text-amber-400 font-bold digital-font">+${currentContract.rewardGold} PTS</span>
+                    </div>
+                    <p class="text-[9px] text-gray-400 italic">"${currentContract.flavorText}"</p>
+                    <div class="flex justify-between items-center bg-slate-950 p-1.5 rounded border border-gray-850 mt-1.5">
+                        <span class="text-xs text-violet-300 font-bold">${currentContract.species} [${methodKr}]</span>
+                        <span class="text-xs font-bold ${canComplete ? 'text-emerald-400' : 'text-red-500'}">
+                            (${hasCount} / ${currentContract.count})
+                        </span>
+                    </div>
+                    <button onclick="submitContract()" ${canComplete ? '' : 'disabled'} class="w-full mt-1.5 text-center text-[10px] font-bold p-1.5 rounded transition-all select-none ${canComplete ? 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white cursor-pointer shadow-lg animate-pulse' : 'bg-gray-800 text-gray-500 cursor-not-allowed'}" id="contractSubmitBtn">
+                        <i class="fa-solid fa-truck-ramp-box mr-1"></i> ${canComplete ? '의뢰 수하물 즉시 선적 (납품 완료!)' : '인벤토리에 가공품이 부족합니다'}
+                    </button>
+                </div>
+            `;
+        }
+
+        function checkContractCompletion() {
+            if (currentContract) {
+                renderContractUI();
+            }
+        }
+
+        function submitContract() {
+            if (!currentContract) return;
+            
+            let matchedIndices = [];
+            for (let i = 0; i < inventory.length; i++) {
+                if (inventory[i].species === currentContract.species && inventory[i].method === currentContract.method) {
+                    matchedIndices.push(i);
+                    if (matchedIndices.length === currentContract.count) break;
+                }
+            }
+
+            if (matchedIndices.length < currentContract.count) return;
+
+            // 매칭된 가공품 인벤토리에서 실질 삭제 및 갱신
+            // 내림차순 정렬하여 인덱스 흐트러짐 방지
+            matchedIndices.sort((a,b) => b-a).forEach(idx => {
+                inventory.splice(idx, 1);
+            });
+
+            score += currentContract.rewardGold;
+            document.getElementById('scoreVal').innerText = score.toString().padStart(4, '0');
+            updateInventoryUI();
+            
+            playSound('coin');
+            alertBox(`${currentContract.client} 계약 납품에 성공하여 ${currentContract.rewardGold}점을 획득했습니다! 🎉`);
+            
+            currentContract = null;
+            generateNewAiContract();
+        }
+
+        const btnLeft = document.getElementById('btnLeft');
+        const btnRight = document.getElementById('btnRight');
+        const btnGrab = document.getElementById('btnGrab');
+        const btnMute = document.getElementById('btnMute');
+        const muteIcon = document.getElementById('muteIcon');
+
+        // 사운드 토글
+        btnMute.addEventListener('click', () => {
+            isMuted = !isMuted;
+            if (isMuted) {
+                muteIcon.className = "fa-solid fa-volume-xmark text-red-500";
+                alertBox("사운드가 음소거되었습니다.");
+            } else {
+                muteIcon.className = "fa-solid fa-volume-high text-emerald-400";
+                alertBox("오디오 장치가 활성화되었습니다.");
+            }
+        });
+
+        // 좌우 조이스틱 이동 제어
+        let moveLeftInterval = null;
+        let moveRightInterval = null;
+
+        function moveClawLeft() {
+            if (claw.state === 'idle') {
+                claw.x = Math.max(50, claw.x - 6);
+            }
+        }
+
+        function moveClawRight() {
+            if (claw.state === 'idle') {
+                claw.x = Math.min(canvas.width * 0.52, claw.x + 6); // 조종 가능 좌측 수조 영역 한정
+            }
+        }
+
+        // 연속 터치 및 마우스 이동 인터랙션
+        btnLeft.addEventListener('mousedown', () => {
+            moveLeftInterval = setInterval(moveClawLeft, 20);
+        });
+        btnLeft.addEventListener('mouseup', () => clearInterval(moveLeftInterval));
+        btnLeft.addEventListener('mouseleave', () => clearInterval(moveLeftInterval));
+        btnLeft.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            moveLeftInterval = setInterval(moveClawLeft, 20);
+        });
+        btnLeft.addEventListener('touchend', () => clearInterval(moveLeftInterval));
+
+        btnRight.addEventListener('mousedown', () => {
+            moveRightInterval = setInterval(moveClawRight, 20);
+        });
+        btnRight.addEventListener('mouseup', () => clearInterval(moveRightInterval));
+        btnRight.addEventListener('mouseleave', () => clearInterval(moveRightInterval));
+        btnRight.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            moveRightInterval = setInterval(moveClawRight, 20);
+        });
+        btnRight.addEventListener('touchend', () => clearInterval(moveRightInterval));
+
+        // GRAB 작동 트리거
+        function performGrab() {
+            if (claw.state === 'idle') {
+                playSound('drop');
+                claw.state = 'dropping';
+                claw.dropTargetY = canvas.height * 0.84; 
+            }
+        }
+
+        btnGrab.addEventListener('click', performGrab);
+
+        // PC 키보드 단축키
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'ArrowLeft') {
+                moveClawLeft();
+            } else if (e.code === 'ArrowRight') {
+                moveClawRight();
+            } else if (e.code === 'Space') {
+                e.preventDefault();
+                performGrab();
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+        });
+
+        function runGameLoop() {
+            updatePhysics();
+            drawScene();
+            requestAnimationFrame(runGameLoop);
+        }
+
+        function launchSystem() {
+            resizeCanvas();
+            initSeafood();
+
+            // 저장된 API Key 복구
+            const savedKey = localStorage.getItem('fisher_claw_gemini_key');
+            if (savedKey) {
+                const keyInput = document.getElementById('apiKeyInput');
+                if (keyInput) {
+                    keyInput.value = savedKey;
+                }
+                userApiKey = savedKey;
+            }
+
+            // 최초 AI 계약서 자동 생성 구동
+            generateNewAiContract();
+
+            // 게임 루프 시작
+            runGameLoop();
+        }
+
+        // 브라우저 로드 즉시 강제 기동
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            launchSystem();
+        } else {
+            window.addEventListener('DOMContentLoaded', launchSystem);
+        }
+    </script>
+</body>
+</html>
