@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fisher-claw-manual-v1';
+const CACHE_NAME = 'fisher-claw-manual-v2';
 const APP_SHELL = [
   './',
   './index.html',
