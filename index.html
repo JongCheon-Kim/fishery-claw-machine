@@ -697,7 +697,7 @@
 
                 if (isCompactDevice()) {
                     spawnCount = 1;
-                    if (name === '고등어' || name === '꽃게' || name === '랍스터') {
+                    if (name === '고등어' || name === '연어' || name === '꽃게' || name === '랍스터') {
                         spawnCount = 2;
                     }
                 } else if (name === '꽃게' || name === '랍스터') {
@@ -711,7 +711,15 @@
                 }
 
                 for (let i = 0; i < spawnCount; i++) {
-                    marineLife.push(spawnSeafood(name));
+                    const spawnedItem = spawnSeafood(name);
+
+                    if (name === '연어') {
+                        spawnedItem.x = canvas.width * (i === 0 ? 0.28 : 0.72);
+                        spawnedItem.y = canvas.height * (i === 0 ? 0.46 : 0.62);
+                        spawnedItem.speed = Math.abs(spawnedItem.speed) * (i === 0 ? 1 : -1);
+                    }
+
+                    marineLife.push(spawnedItem);
                 }
             });
 
